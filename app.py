@@ -1,54 +1,45 @@
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import openai
+from openai import OpenAI
 import os
 
 app = Flask(__name__)
 CORS(app)
 
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+# Load from environment variable or set manually
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "your_openai_key_here")
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    data = request.get_json()
-    prompt = data.get("prompt", "")
-
-    if not prompt:
-        return jsonify({"error": "No prompt provided"}), 400
-
     try:
-        response = openai.ChatCompletion.create(
+        data = request.json
+        prompt = data.get("prompt", "")
+
+        # Use latest SDK method
+        response = client.chat.completions.create(
             model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that generates color palettes with explanations."},
-                {"role": "user", "content": f"Generate a 5-color palette with HEX codes and reasons for each based on the prompt: '{prompt}'"}
-            ]
+            messages=[{"role": "user", "content": f"Generate a color palette for: {prompt}"}],
+            max_tokens=300
         )
 
         content = response.choices[0].message.content
 
-        # Simplified parsing for now; in production, you'd want stricter formatting
-        lines = content.strip().split("\n")
-        palette = []
-        for line in lines:
-            if "#" in line:
-                parts = line.split("–")
-                if len(parts) < 2:
-                    parts = line.split("-")
-                hex_part = parts[0].strip()
-                reason = parts[1].strip() if len(parts) > 1 else "No reason provided"
-                palette.append({"hex": hex_part, "reason": reason})
-
+        # Sample dummy response parser
         return jsonify({
-            "label": prompt.title(),
-            "palette": palette,
-            "tags": [prompt.lower()]  # Basic tag usage
+            "label": "Placeholder Palette",
+            "palette": [
+                { "hex": "#6A4F4B", "reason": "Earthy resilience" },
+                { "hex": "#A1561C", "reason": "Fiery passion" },
+                { "hex": "#DDBE99", "reason": "Warmth and calm" },
+                { "hex": "#2B2D42", "reason": "Depth and mystery" },
+                { "hex": "#B91C1C", "reason": "Bold statement" }
+            ],
+            "tags": ["resilient", "fiery", "warm", "mysterious", "bold"]
         })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
-
+if __name__ == "__main__":
+    app.run(debug=True)
